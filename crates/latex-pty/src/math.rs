@@ -1058,7 +1058,7 @@ fn display_close(text: &str, pattern: &str) -> Option<usize> {
 
 fn transcript_boundary(screen: &Screen, row: u16, cols: u16, text: &str) -> bool {
     if is_rule_row(screen, row, cols)
-        || text.trim().starts_with("Jump to bottom (")
+        || text.contains("Jump to bottom (")
         || text.contains("Jump to latest")
     {
         return true;
@@ -1622,7 +1622,7 @@ pub fn is_scrolled_up(screen: &Screen) -> bool {
     let cols = cols.get();
     (0..rows).any(|row| {
         let (text, _) = row_text(screen, row, cols);
-        text.contains("Jump to latest") || text.trim().starts_with("Jump to bottom (")
+        text.contains("Jump to latest") || text.contains("Jump to bottom (")
     })
 }
 
