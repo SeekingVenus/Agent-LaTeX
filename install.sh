@@ -23,7 +23,7 @@ elif command -v shasum >/dev/null; then checksum=shasum
 else fail 'sha256sum or shasum is required'; fi
 base="https://github.com/$repo/releases"
 if [ "$version" = latest ]; then
-    # Resolve once so archive and checksum cannot come from different releases.
+    # Resolve once so archive and metadata cannot come from different releases.
     resolved=$(curl --proto '=https' --tlsv1.2 -fsSL -o /dev/null -w '%{url_effective}' "$base/latest")
     version=${resolved##*/}
     case "$version" in v[0-9]*) ;; *) fail 'no published release found';; esac
@@ -33,11 +33,27 @@ base="$base/download/$version"
 archive="agent-latex-$os-$arch.tar.gz"
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT HUP INT TERM
+curl --proto '=https' --tlsv1.2 -fsSL "https://api.github.com/repos/$repo/releases/tags/$version" -o "$work/release.json"
+# shortcut: parse GitHub's line-oriented JSON; use a JSON parser if its formatting changes.
+expected=$(awk -v asset="$archive" '
+    /^[[:space:]]*"name"[[:space:]]*:/ {
+        name = $0
+        sub(/^[^:]*:[[:space:]]*"/, "", name)
+        sub(/"[[:space:]]*,?[[:space:]]*$/, "", name)
+    }
+    /^[[:space:]]*"digest"[[:space:]]*:/ && name == asset {
+        digest = $0
+        sub(/^[^:]*:[[:space:]]*"/, "", digest)
+        sub(/"[[:space:]]*,?[[:space:]]*$/, "", digest)
+        if (digest !~ /^sha256:[0-9a-f]+$/ || length(digest) != 71) exit 1
+        expected = substr(digest, 8)
+        count++
+    }
+    END { if (count != 1) exit 1; print expected }
+' "$work/release.json") || fail 'missing or ambiguous SHA-256 digest in release metadata'
 curl --proto '=https' --tlsv1.2 -fsSL "$base/$archive" -o "$work/$archive"
-curl --proto '=https' --tlsv1.2 -fsSL "$base/SHA256SUMS" -o "$work/SHA256SUMS"
 cd "$work"
-awk -v name="$archive" '$2 == name {print}' SHA256SUMS > selected.sha256
-[ "$(wc -l < selected.sha256 | tr -d ' ')" = 1 ] || fail 'missing or duplicate checksum'
+printf '%s  %s\n' "$expected" "$archive" > selected.sha256
 if [ "$checksum" = sha256sum ]; then sha256sum -c selected.sha256
 else shasum -a 256 -c selected.sha256; fi
 # Extract only the executable, not paths supplied by the archive.

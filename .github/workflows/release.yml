@@ -51,10 +51,18 @@ jobs:
         with:
           pattern: agent-latex-*
           merge-multiple: true
-      - run: sha256sum agent-latex-*.tar.gz > SHA256SUMS
-      - name: Create draft release
+      - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ github.ref_name }}
-        run: gh release create "$RELEASE_TAG" --draft --generate-notes agent-latex-*.tar.gz SHA256SUMS
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" agent-latex-*.tar.gz --clobber
+          else
+            gh release create "$RELEASE_TAG" --generate-notes agent-latex-*.tar.gz
+          fi
+          legacy=$(gh release view "$RELEASE_TAG" --json assets --jq '.assets[] | select(.name == "SHA256SUMS") | .name')
+          if [ -n "$legacy" ]; then
+            gh release delete-asset "$RELEASE_TAG" SHA256SUMS --yes
+          fi

@@ -32,24 +32,7 @@ width-aware output and JSON results for scripts.
 
 ### 1. Install
 
-**From source** (Rust required):
-
-```sh
-git clone https://github.com/SeekingVenus/Agent-LaTeX.git
-cd Agent-LaTeX
-cargo install --path crates/latex-cli --locked
-```
-
-The installed executable is `agent-latex`. Cargo places it in `~/.cargo/bin`.
-
-<details>
-<summary>Prebuilt binaries and installer</summary>
-
-Binary installation uses a published [Release](https://github.com/SeekingVenus/Agent-LaTeX/releases)
-containing platform archives and `SHA256SUMS`.
-
-Download and extract the Linux or macOS archive matching the system architecture,
-or use the installer:
+Download the platform binary using the installer:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/SeekingVenus/Agent-LaTeX/main/install.sh -o install.sh
@@ -57,15 +40,32 @@ sh install.sh SeekingVenus/Agent-LaTeX
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
-The installer selects the platform archive, verifies SHA-256, and installs to
-`~/.local/bin`. It does not change shell configuration.
+The installer selects the Linux or macOS archive, verifies SHA-256, and installs
+`agent-latex` to `~/.local/bin`. No Rust or TeX installation is required.
 
-To select a version or installation directory:
+<details>
+<summary>Manual download, specific versions and source builds</summary>
+
+**Manual download:** extract the appropriate archive from
+[Releases](https://github.com/SeekingVenus/Agent-LaTeX/releases).
+
+**Specific version or installation directory:**
 
 ```sh
 sh install.sh SeekingVenus/Agent-LaTeX v0.1.0
 INSTALL_DIR="$HOME/bin" sh install.sh SeekingVenus/Agent-LaTeX
 ```
+
+**Source build** (Rust required):
+
+```sh
+git clone https://github.com/SeekingVenus/Agent-LaTeX.git
+cd Agent-LaTeX
+cargo install --path crates/latex-cli --locked
+```
+
+Cargo installs to `~/.cargo/bin`. The binary installer does not change shell
+configuration; the alias section below describes persistent shell settings.
 
 </details>
 

@@ -30,23 +30,7 @@
 
 ### 1. 安装
 
-**从源码安装**（需要 Rust）：
-
-```sh
-git clone https://github.com/SeekingVenus/Agent-LaTeX.git
-cd Agent-LaTeX
-cargo install --path crates/latex-cli --locked
-```
-
-安装后的命令为 `agent-latex`，Cargo 默认将其放在 `~/.cargo/bin`。
-
-<details>
-<summary>预编译文件与安装脚本</summary>
-
-预编译安装使用 [Release](https://github.com/SeekingVenus/Agent-LaTeX/releases)
-中的平台程序包和 `SHA256SUMS`。
-
-可下载与系统架构对应的 Linux 或 macOS 程序包并解压，也可使用安装脚本：
+使用安装脚本下载对应平台的可执行文件：
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/SeekingVenus/Agent-LaTeX/main/install.sh -o install.sh
@@ -54,14 +38,32 @@ sh install.sh SeekingVenus/Agent-LaTeX
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
-脚本自动选择程序包、校验 SHA-256，并安装到 `~/.local/bin`，不修改 shell 配置文件。
+脚本自动选择 Linux 或 macOS 程序包、校验 SHA-256，并安装到 `~/.local/bin`。
+运行预编译文件无需 Rust 或 TeX 环境。
 
-指定版本或安装目录：
+<details>
+<summary>手动下载、指定版本及源码安装</summary>
+
+**手动下载**：从 [Releases](https://github.com/SeekingVenus/Agent-LaTeX/releases)
+下载对应平台的程序包并解压。
+
+**指定版本或安装目录**：
 
 ```sh
 sh install.sh SeekingVenus/Agent-LaTeX v0.1.0
 INSTALL_DIR="$HOME/bin" sh install.sh SeekingVenus/Agent-LaTeX
 ```
+
+**源码安装**（需要 Rust）：
+
+```sh
+git clone https://github.com/SeekingVenus/Agent-LaTeX.git
+cd Agent-LaTeX
+cargo install --path crates/latex-cli --locked
+```
+
+Cargo 默认安装到 `~/.cargo/bin`。二进制安装脚本不修改 shell 配置文件；
+需要长期保留的配置见下文别名说明。
 
 </details>
 
