@@ -29,6 +29,7 @@ struct Style {
 }
 
 enum RowKind {
+    Blank,
     Source(u16),
     Art {
         prefix_row: u16,
@@ -113,7 +114,7 @@ impl Compositor {
             MathReplacements::default()
         };
         let reflow = if self.replace_inline && !scrolled {
-            find_reflow_blocks(screen, conversation_end, cursor_row)
+            find_reflow_blocks(screen, conversation_end, cursor_row, self.math_policy)
         } else {
             Vec::new()
         };
@@ -246,6 +247,7 @@ impl Compositor {
         // first; only then scroll older rows out of the top.
         while kinds.len() > usize::from(conversation_end) {
             let blank_tail = match kinds.last() {
+                Some(RowKind::Blank) => true,
                 Some(RowKind::Art { text, .. }) => text.trim().is_empty(),
                 Some(RowKind::Source(row)) => row_is_blank(screen, *row, self.cols),
                 None => false,
@@ -257,11 +259,7 @@ impl Compositor {
             }
         }
         while kinds.len() < usize::from(conversation_end) {
-            kinds.push(RowKind::Art {
-                prefix_row: 0,
-                start: 0,
-                text: String::new(),
-            });
+            kinds.push(RowKind::Blank);
         }
 
         let conversation_rows = usize::from(conversation_end);
@@ -269,6 +267,9 @@ impl Compositor {
         for (visual_row, kind) in kinds.iter().enumerate() {
             let mut row = String::new();
             match kind {
+                RowKind::Blank => {
+                    render_blank_row(&mut row, screen, visual_row as u16, self.cols);
+                }
                 RowKind::Source(source) => {
                     render_source_row(&mut row, screen, *source, self.cols, &inline);
                 }
@@ -487,6 +488,19 @@ fn render_source_row(
             write_style(out, style);
         }
         out.push_str(&" ".repeat(removed));
+    }
+}
+
+fn render_blank_row(out: &mut String, screen: &vt100::Screen, row: u16, cols: u16) {
+    let mut current = Style::default();
+    write_style(out, current);
+    for col in 0..cols {
+        let style = style_of(screen.cell(row, col));
+        if style != current {
+            current = style;
+            write_style(out, current);
+        }
+        out.push(' ');
     }
 }
 

@@ -117,7 +117,7 @@ pub fn run(options: WrapOptions) -> Result<u32> {
     let ticker = tick(Duration::from_millis(16));
     let mut dirty = false;
     let mut last_frame: Option<Frame> = None;
-    let mut mode_forwarder = ModeForwarder::new();
+    let mut controls = TerminalControls::new();
 
     loop {
         select! {
@@ -125,13 +125,14 @@ pub fn run(options: WrapOptions) -> Result<u32> {
                 match message {
                     Ok(bytes) => {
                         let mut modes = Vec::new();
-                        mode_forwarder.feed(&bytes, &mut modes);
+                        let mut queries = Vec::new();
+                        controls.feed(&bytes, &mut modes, &mut queries);
                         if !modes.is_empty() {
                             stdout.write_all(&modes)?;
                             stdout.flush()?;
                         }
                         compositor.process(&bytes);
-                        respond_to_queries(&bytes, &writer, compositor.cursor());
+                        respond_to_queries(&queries, &writer, compositor.cursor());
                         dirty = true;
                     }
                     Err(_) => break,
@@ -309,20 +310,29 @@ const FORWARDED_MODES: &[&[u8]] = &[
     b"\x1b[?1004l",
 ];
 
-/// Forward bracketed-paste and focus-reporting mode changes from the child to
-/// the real terminal. The sequences may be split across reads.
-struct ModeForwarder {
+const TERMINAL_QUERIES: &[&[u8]] = &[
+    b"\x1b[6n",
+    b"\x1b[c",
+    b"\x1b[0c",
+    b"\x1b]10;?\x07",
+    b"\x1b]10;?\x1b\\",
+    b"\x1b]11;?\x07",
+    b"\x1b]11;?\x1b\\",
+];
+
+/// Keep mode changes and queries intact when PTY reads split escape sequences.
+struct TerminalControls {
     pending: Vec<u8>,
 }
 
-impl ModeForwarder {
+impl TerminalControls {
     fn new() -> Self {
         Self {
             pending: Vec::new(),
         }
     }
 
-    fn feed(&mut self, input: &[u8], out: &mut Vec<u8>) {
+    fn feed(&mut self, input: &[u8], out: &mut Vec<u8>, queries: &mut Vec<&'static [u8]>) {
         self.pending.extend_from_slice(input);
         let mut index = 0usize;
         while index < self.pending.len() {
@@ -332,8 +342,17 @@ impl ModeForwarder {
                 index += mode.len();
                 continue;
             }
+            if let Some(query) = TERMINAL_QUERIES
+                .iter()
+                .find(|query| rest.starts_with(query))
+            {
+                queries.push(*query);
+                index += query.len();
+                continue;
+            }
             if FORWARDED_MODES
                 .iter()
+                .chain(TERMINAL_QUERIES.iter())
                 .any(|mode| mode.len() > rest.len() && mode.starts_with(rest))
             {
                 break;
@@ -378,39 +397,29 @@ fn build_command(options: &WrapOptions) -> CommandBuilder {
 }
 
 fn respond_to_queries(
-    bytes: &[u8],
+    queries: &[&[u8]],
     writer: &Arc<Mutex<Box<dyn std::io::Write + Send>>>,
     cursor: (u16, u16),
 ) {
     let mut response = Vec::new();
-
-    if contains(bytes, b"\x1b[6n") {
-        response.extend_from_slice(format!("\x1b[{};{}R", cursor.0 + 1, cursor.1 + 1).as_bytes());
+    for query in queries {
+        if *query == b"\x1b[6n" {
+            response
+                .extend_from_slice(format!("\x1b[{};{}R", cursor.0 + 1, cursor.1 + 1).as_bytes());
+        } else if *query == b"\x1b[c" || *query == b"\x1b[0c" {
+            response.extend_from_slice(b"\x1b[?1;2c");
+        } else if query.starts_with(b"\x1b]10;") {
+            response.extend_from_slice(b"\x1b]10;rgb:ffff/ffff/ffff\x07");
+        } else if query.starts_with(b"\x1b]11;") {
+            response.extend_from_slice(b"\x1b]11;rgb:0000/0000/0000\x07");
+        }
     }
-    if contains(bytes, b"\x1b[c") || contains(bytes, b"\x1b[0c") {
-        response.extend_from_slice(b"\x1b[?1;2c");
+    if !response.is_empty() {
+        if let Ok(mut writer) = writer.lock() {
+            let _ = writer.write_all(&response);
+            let _ = writer.flush();
+        }
     }
-    if contains(bytes, b"\x1b]10;?") {
-        response.extend_from_slice(b"\x1b]10;rgb:ffff/ffff/ffff\x07");
-    }
-    if contains(bytes, b"\x1b]11;?") {
-        response.extend_from_slice(b"\x1b]11;rgb:0000/0000/0000\x07");
-    }
-
-    if response.is_empty() {
-        return;
-    }
-    if let Ok(mut writer) = writer.lock() {
-        let _ = writer.write_all(&response);
-        let _ = writer.flush();
-    }
-}
-
-fn contains(haystack: &[u8], needle: &[u8]) -> bool {
-    needle.len() <= haystack.len()
-        && haystack
-            .windows(needle.len())
-            .any(|window| window == needle)
 }
 
 struct KeyFilter {

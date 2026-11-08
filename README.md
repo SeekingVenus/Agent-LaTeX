@@ -52,7 +52,7 @@ The installer selects the Linux or macOS archive, verifies SHA-256, and installs
 **Specific version or installation directory:**
 
 ```sh
-sh install.sh SeekingVenus/Agent-LaTeX v0.1.0
+sh install.sh SeekingVenus/Agent-LaTeX v0.1.1
 INSTALL_DIR="$HOME/bin" sh install.sh SeekingVenus/Agent-LaTeX
 ```
 

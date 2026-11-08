@@ -92,6 +92,11 @@ composer and Claude Code's `❯` prompt.
 
 Platforms: Linux and macOS.
 
+For Claude Code, the wrapper also recognizes math parentheses and standalone
+brackets whose delimiter escapes were removed by Markdown. It restores row
+separators in flat matrix/aligned environments where the displayed structure
+identifies them. Literal delimiter examples such as `\(...\)` remain unchanged.
+
 Hotkey:
 
 ```bash
@@ -146,11 +151,12 @@ Terminal behavior:
   grow); only standalone/display math gets the 2D form;
 - display reflow reserves rows above the fixed input/status area; free rows at
   the bottom are used first, and only then do older rows scroll out of the top.
-  Reflow is disabled while the transcript is scrolled up (`Jump to latest`);
+  Reflow is disabled while the transcript is scrolled up (`Jump to latest` or
+  `Jump to bottom`);
 - the input/status boundary is detected from the composer's border; when the
   border is not visible nothing is hidden, so conversation math is not skipped;
-- inline math in the editable composer renders; multi-line display math stays
-  raw while the cursor is inside it, so editing and line breaks are not split;
+- the editable input area is displayed unchanged; formula scanning is confined
+  to the conversation area;
 - the toggle hotkey is F12 by default; use `--toggle-key` to change it or
   `--no-hotkeys` to disable it;
 - a lone Escape is separated from a split function-key sequence by a 50 ms

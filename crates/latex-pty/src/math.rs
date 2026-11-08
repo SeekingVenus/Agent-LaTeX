@@ -41,6 +41,8 @@ pub struct MathReplacements {
 /// How aggressively `$...$` is treated as math.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MathPolicy {
+    /// Claude's Markdown display can strip math delimiter and row-break escapes.
+    Claude,
     /// Agent prose: `$x$` and `$n$` are math.
     Agent,
     /// Generic command output: only unambiguous math, never shell variables.
@@ -61,7 +63,7 @@ impl MathPolicy {
             // Agent prose stays aggressive: math next to operators, CJK text
             // or borders must still render. Only shell-like attachment is
             // rejected (`PATH=$HOME:$PATH`, `$A` next to a word).
-            Self::Agent => agent_boundary_ok(before, after),
+            Self::Agent | Self::Claude => agent_boundary_ok(before, after),
             Self::Generic => context_ok(before, after) && looks_like_math(source),
         }
     }
@@ -185,6 +187,7 @@ fn find_math_internal(screen: &Screen, policy: MathPolicy) -> MathReplacements {
     let rows = rows.get();
     let cols = cols.get();
     let cursor_row = screen.cursor_position().0;
+    let rows = detect_input_start(screen, cursor_row).min(rows);
     let rows_data: Vec<(String, Vec<u16>)> =
         (0..rows).map(|row| row_text(screen, row, cols)).collect();
     let mut result = MathReplacements::default();
@@ -197,6 +200,7 @@ fn find_math_internal(screen: &Screen, policy: MathPolicy) -> MathReplacements {
         cols,
         cursor_row,
         &mut occupied,
+        policy,
     ));
 
     result.inline.extend(find_wrapped_inline(
@@ -320,6 +324,9 @@ fn find_wrapped_inline(
             }
 
             let (line, _) = &rows_data[next];
+            if transcript_boundary(screen, next as u16, cols, line) {
+                break;
+            }
             if line.trim().is_empty() || !line.starts_with(&text[..prefix_len]) {
                 break;
             }
@@ -446,9 +453,15 @@ fn join_wrapped_parts(parts: &[String], trailing_space: &[bool]) -> String {
     out
 }
 
-fn append_math_rows(source: &mut String, part: &str) {
+fn append_math_rows(source: &mut String, part: &str, policy: MathPolicy) {
     if part.is_empty() {
         return;
+    }
+    if policy == MathPolicy::Claude
+        && source.ends_with(" \\")
+        && source.rfind("\\begin{") > source.rfind("\\end{")
+    {
+        source.push('\\');
     }
     if !source.is_empty() && !looks_like_split_command(source, part) {
         source.push(' ');
@@ -638,6 +651,41 @@ fn find_in_row(
     let mut index = 0usize;
 
     while index < bytes.len() {
+        if policy == MathPolicy::Claude && bytes[index] == b'(' {
+            let mut depth = 1;
+            let close = text[index + 1..].char_indices().find_map(|(offset, ch)| {
+                if ch == '(' {
+                    depth += 1;
+                }
+                if ch == ')' {
+                    depth -= 1;
+                }
+                (depth == 0).then_some(index + 1 + offset)
+            });
+            if let Some(close) = close {
+                let source = &text[index + 1..close];
+                if source.contains('\\') && latex_core::parse(source).diagnostics.is_empty() {
+                    try_inline(
+                        screen,
+                        row,
+                        rows,
+                        cols,
+                        cursor_row,
+                        text,
+                        col_at_byte,
+                        index,
+                        index + 1,
+                        close,
+                        &mut inline,
+                        &mut blocks,
+                        occupied,
+                        policy,
+                    );
+                    index = close + 1;
+                    continue;
+                }
+            }
+        }
         if bytes[index] == b'\\' {
             // \[ ... \] and \( ... \)
             if text[index..].starts_with("\\[") {
@@ -763,7 +811,7 @@ fn try_inline(
     policy: MathPolicy,
 ) {
     let source = &text[source_start..close];
-    if !valid_inline(source) {
+    if !valid_inline(source) || matches!(source.trim(), "..." | "…") {
         return;
     }
     let Some(&start_col) = col_at_byte.get(start) else {
@@ -772,16 +820,16 @@ fn try_inline(
     let Some(&close_col) = col_at_byte.get(close) else {
         return;
     };
-    let end_col = close_col + 1;
+    let closing_width = if text[start..].starts_with("\\(") {
+        2
+    } else {
+        1
+    };
+    let end_col = close_col + closing_width;
     if end_col <= start_col {
         return;
     }
-    let end = close
-        + if text[start..].starts_with("\\(") {
-            2
-        } else {
-            1
-        };
+    let end = close + usize::from(closing_width);
     let is_paren = text[start..].starts_with("\\(");
     if !is_paren
         && !policy.accepts_inline_at(
@@ -840,7 +888,7 @@ fn try_display(
     occupied: &mut [bool],
 ) {
     let source = &text[source_start..close];
-    if source.trim().is_empty() {
+    if source.trim().is_empty() || matches!(source.trim(), "..." | "…") {
         return;
     }
     let end = close + 2;
@@ -911,6 +959,7 @@ pub fn find_reflow_blocks(
     screen: &Screen,
     conversation_end: u16,
     cursor_row: u16,
+    policy: MathPolicy,
 ) -> Vec<ReflowBlock> {
     let (rows, cols) = screen.size();
     let rows = rows.get();
@@ -923,7 +972,7 @@ pub fn find_reflow_blocks(
     while row < usize::from(conversation_end) {
         let (text, col_at_byte) = &rows_data[row];
         let Some((open, close_pattern, source_offset)) =
-            display_open(text).or_else(|| dollar_open(text))
+            display_open(text, policy).or_else(|| dollar_open(text))
         else {
             row += 1;
             continue;
@@ -950,7 +999,7 @@ pub fn find_reflow_blocks(
                     row: row as u16,
                     source_rows: 1,
                     start: start_col,
-                    source,
+                    source: normalize_claude_rows(source, policy),
                 });
             }
             row += 1;
@@ -963,19 +1012,22 @@ pub fn find_reflow_blocks(
         while end_row < usize::from(conversation_end) {
             let (raw_line, _) = &rows_data[end_row];
             let line = strip_row_prefix(raw_line, prefix);
-            if let Some(close) = find_unescaped(line, 0, close_pattern) {
+            if transcript_boundary(screen, end_row as u16, cols, line) {
+                break;
+            }
+            if let Some(close) = display_close(line, close_pattern) {
                 if !is_decoration_only(&line[close + close_pattern.len()..]) {
                     break;
                 }
-                append_math_rows(&mut source, line[..close].trim());
+                append_math_rows(&mut source, line[..close].trim(), policy);
                 found = true;
                 break;
             }
-            append_math_rows(&mut source, line.trim());
+            append_math_rows(&mut source, line.trim(), policy);
             end_row += 1;
         }
 
-        if found && !source.trim().is_empty() {
+        if found && !source.trim().is_empty() && (close_pattern != "]" || source.contains('\\')) {
             if usize::from(cursor_row) >= row && usize::from(cursor_row) <= end_row {
                 row = end_row + 1;
                 continue;
@@ -984,7 +1036,7 @@ pub fn find_reflow_blocks(
                 row: row as u16,
                 source_rows: (end_row - row + 1) as u16,
                 start: start_col,
-                source,
+                source: normalize_claude_rows(source, policy),
             });
             row = end_row + 1;
             continue;
@@ -994,6 +1046,100 @@ pub fn find_reflow_blocks(
     }
 
     out
+}
+
+fn display_close(text: &str, pattern: &str) -> Option<usize> {
+    if pattern == "]" {
+        (text.trim() == "]").then(|| text.find(']').unwrap())
+    } else {
+        find_unescaped(text, 0, pattern)
+    }
+}
+
+fn transcript_boundary(screen: &Screen, row: u16, cols: u16, text: &str) -> bool {
+    if is_rule_row(screen, row, cols)
+        || text.trim().starts_with("Jump to bottom (")
+        || text.contains("Jump to latest")
+    {
+        return true;
+    }
+    text.trim()
+        .split_once(". ")
+        .is_some_and(|(number, heading)| {
+            !number.is_empty()
+                && number.chars().all(|ch| ch.is_ascii_digit())
+                && heading.chars().next().is_some_and(char::is_alphabetic)
+        })
+}
+
+fn normalize_claude_rows(mut source: String, policy: MathPolicy) -> String {
+    if policy != MathPolicy::Claude {
+        return source;
+    }
+    use latex_core::lexer::{lex, TokenKind};
+    let mut insertions = Vec::new();
+    let mut position = 0;
+    while let Some(offset) = source[position..].find("\\begin{") {
+        let start = position + offset + 7;
+        let Some(end_name) = source[start..].find('}') else {
+            break;
+        };
+        let name = &source[start..start + end_name];
+        let body_start = start + end_name + 1;
+        position = body_start;
+        if !matches!(
+            name,
+            "matrix"
+                | "pmatrix"
+                | "bmatrix"
+                | "Bmatrix"
+                | "vmatrix"
+                | "Vmatrix"
+                | "cases"
+                | "aligned"
+                | "align"
+                | "array"
+                | "split"
+        ) {
+            continue;
+        }
+        let close = format!("\\end{{{name}}}");
+        let Some(length) = source[body_start..].find(&close) else {
+            continue;
+        };
+        let body = &source[body_start..body_start + length];
+        // Lost escapes cannot be inferred safely across nested environments.
+        if body.contains("\\begin{") {
+            position = body_start + length + close.len();
+            continue;
+        }
+        let mut depth = 0usize;
+        let mut ampersand = false;
+        for token in lex(body) {
+            match token.kind {
+                TokenKind::LBrace => depth += 1,
+                TokenKind::RBrace => depth = depth.saturating_sub(1),
+                TokenKind::Amp if depth == 0 => ampersand = true,
+                TokenKind::Newline if depth == 0 => ampersand = false,
+                TokenKind::Command(ref command)
+                    if depth == 0
+                        && command == " "
+                        && ampersand
+                        && body[token.span.end..].contains('&') =>
+                {
+                    // Claude's Markdown can collapse a matrix row separator to a space escape.
+                    insertions.push(body_start + token.span.start);
+                    ampersand = false;
+                }
+                _ => {}
+            }
+        }
+        position = body_start + length + close.len();
+    }
+    for index in insertions.into_iter().rev() {
+        source.insert(index, '\\');
+    }
+    source
 }
 
 fn dollar_open(text: &str) -> Option<(usize, &'static str, usize)> {
@@ -1008,7 +1154,10 @@ fn dollar_open(text: &str) -> Option<(usize, &'static str, usize)> {
     None
 }
 
-fn display_open(text: &str) -> Option<(usize, &'static str, usize)> {
+fn display_open(text: &str, policy: MathPolicy) -> Option<(usize, &'static str, usize)> {
+    if policy == MathPolicy::Claude && text.trim() == "[" {
+        return text.find('[').map(|index| (index, "]", 1));
+    }
     let dollar = find_unescaped(text, 0, "$$").map(|index| (index, "$$", 2));
     let bracket = find_unescaped(text, 0, "\\[").map(|index| (index, "\\]", 2));
     match (dollar, bracket) {
@@ -1026,6 +1175,7 @@ fn find_multiline_display(
     cols: u16,
     cursor_row: u16,
     occupied: &mut [bool],
+    policy: MathPolicy,
 ) -> Vec<BlockReplacement> {
     let mut out = Vec::new();
     let mut row = 0usize;
@@ -1036,7 +1186,7 @@ fn find_multiline_display(
             continue;
         }
         let (text, col_at_byte) = &rows_data[row];
-        let Some((open, close_pattern, source_offset)) = display_open(text) else {
+        let Some((open, close_pattern, source_offset)) = display_open(text, policy) else {
             row += 1;
             continue;
         };
@@ -1058,22 +1208,26 @@ fn find_multiline_display(
         while end_row < rows_data.len() {
             let (raw_line, _) = &rows_data[end_row];
             let line = strip_row_prefix(raw_line, opening_prefix);
-            if let Some(close) = find_unescaped(line, 0, close_pattern) {
+            if transcript_boundary(screen, end_row as u16, cols, line) {
+                break;
+            }
+            if let Some(close) = display_close(line, close_pattern) {
                 if !is_decoration_only(&line[close + close_pattern.len()..]) {
                     break;
                 }
-                append_math_rows(&mut source, line[..close].trim());
+                append_math_rows(&mut source, line[..close].trim(), policy);
                 found = true;
                 break;
             }
-            append_math_rows(&mut source, line.trim());
+            append_math_rows(&mut source, line.trim(), policy);
             end_row += 1;
         }
 
-        if !found || source.trim().is_empty() {
+        if !found || source.trim().is_empty() || (close_pattern == "]" && !source.contains('\\')) {
             row += 1;
             continue;
         }
+        let source = normalize_claude_rows(source, policy);
         if usize::from(cursor_row) >= row && usize::from(cursor_row) <= end_row {
             // Editing inside a multi-line display formula: leave the whole span
             // raw. Rendering only the first row would split the input.
@@ -1461,17 +1615,15 @@ fn is_border_cell(screen: &Screen, row: u16, col: u16) -> bool {
         .unwrap_or(false)
 }
 
-/// Whether the transcript is scrolled away from the bottom. OpenCode shows a
-/// `Jump to latest` affordance near the bottom whenever the view is not
-/// following new output. Reflow must be disabled in that state: reserving rows
-/// for a formula would drop rows from the top, which is exactly what the user
-/// scrolled up to read.
+/// Keep the transcript's row positions while either agent shows its scroll banner.
 pub fn is_scrolled_up(screen: &Screen) -> bool {
     let (rows, cols) = screen.size();
     let rows = rows.get();
     let cols = cols.get();
-    let start = rows.saturating_sub(10);
-    (start..rows).any(|row| row_text(screen, row, cols).0.contains("Jump to latest"))
+    (0..rows).any(|row| {
+        let (text, _) = row_text(screen, row, cols);
+        text.contains("Jump to latest") || text.trim().starts_with("Jump to bottom (")
+    })
 }
 
 fn is_decoration_only(text: &str) -> bool {

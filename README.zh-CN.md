@@ -50,7 +50,7 @@ export PATH="$HOME/.local/bin:$PATH"
 **指定版本或安装目录**：
 
 ```sh
-sh install.sh SeekingVenus/Agent-LaTeX v0.1.0
+sh install.sh SeekingVenus/Agent-LaTeX v0.1.1
 INSTALL_DIR="$HOME/bin" sh install.sh SeekingVenus/Agent-LaTeX
 ```
 

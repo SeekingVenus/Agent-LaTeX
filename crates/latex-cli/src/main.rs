@@ -295,10 +295,10 @@ fn math_policy_for(command: &[String]) -> latex_pty::math::MathPolicy {
         .and_then(|program| Path::new(program).file_name())
         .and_then(|name| name.to_str())
         .unwrap_or("");
-    if matches!(name, "opencode" | "claude") {
-        latex_pty::math::MathPolicy::Agent
-    } else {
-        latex_pty::math::MathPolicy::Generic
+    match name {
+        "claude" => latex_pty::math::MathPolicy::Claude,
+        "opencode" => latex_pty::math::MathPolicy::Agent,
+        _ => latex_pty::math::MathPolicy::Generic,
     }
 }
 
