@@ -1,0 +1,60 @@
+name: Release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: read
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            platform: linux-x86_64
+          - os: ubuntu-24.04-arm
+            platform: linux-aarch64
+          - os: macos-15
+            platform: macos-aarch64
+          - os: macos-15-intel
+            platform: macos-x86_64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Verify version matches tag
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          python3 -c 'import os, tomllib; v=tomllib.load(open("Cargo.toml", "rb"))["workspace"]["package"]["version"]; assert os.environ["RELEASE_TAG"] == "v"+v, "Tag must match Cargo.toml version"'
+      - run: cargo build --release --locked
+      - name: Package
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          mkdir dist
+          cp target/release/agent-latex dist/
+          cp LICENSE README.md dist/
+          tar -czf "agent-latex-${PLATFORM}.tar.gz" -C dist agent-latex LICENSE README.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: agent-latex-${{ matrix.platform }}
+          path: agent-latex-*.tar.gz
+          if-no-files-found: error
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: agent-latex-*
+          merge-multiple: true
+      - run: sha256sum agent-latex-*.tar.gz > SHA256SUMS
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: gh release create "$RELEASE_TAG" --draft --generate-notes agent-latex-*.tar.gz SHA256SUMS

@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="426" viewBox="0 0 1000 426" role="img" aria-labelledby="title desc">
+<title id="title">agent-latex rendering examples</title>
+<desc id="desc">Actual terminal output for a Gaussian integral, scaled dot-product attention, cross-entropy loss and a covariance matrix.</desc>
+<rect width="1000" height="426" fill="#171717"/>
+<text x="32" y="33" font-family="monospace" font-size="14" fill="#a0a0a0">$ agent-latex demo</text>
+<path d="M32 52 H968 M32 228 H968 M500 70 V402" fill="none" stroke="#333333"/>
+<text x="32" y="80" font-family="sans-serif" font-size="14" font-weight="500" fill="#a0a0a0">Gaussian normalization</text>
+<g font-family="DejaVu Sans Mono,Menlo,Consolas,monospace" font-size="17" fill="#dedede">
+<text y="108"><tspan x="32">∞</tspan><tspan x="62.6">-</tspan><tspan x="72.8">(</tspan><tspan x="83">(</tspan><tspan x="93.2">x</tspan><tspan x="113.6">-</tspan><tspan x="134">μ</tspan><tspan x="144.2">)</tspan><tspan x="154.4">²</tspan><tspan x="164.6">)</tspan><tspan x="174.8">/</tspan><tspan x="185">(</tspan><tspan x="195.2">2</tspan><tspan x="205.4">σ</tspan><tspan x="215.6">²</tspan><tspan x="225.8">)</tspan></text>
+<text y="130"><tspan x="32">⌠</tspan><tspan x="52.4">e</tspan></text>
+<text y="152"><tspan x="32">⎮</tspan><tspan x="52.4">─</tspan><tspan x="62.6">─</tspan><tspan x="72.8">─</tspan><tspan x="83">─</tspan><tspan x="93.2">─</tspan><tspan x="103.4">─</tspan><tspan x="113.6">─</tspan><tspan x="123.8">─</tspan><tspan x="134">─</tspan><tspan x="144.2">─</tspan><tspan x="154.4">─</tspan><tspan x="164.6">─</tspan><tspan x="174.8">─</tspan><tspan x="185">─</tspan><tspan x="195.2">─</tspan><tspan x="205.4">─</tspan><tspan x="215.6">─</tspan><tspan x="225.8">─</tspan><tspan x="246.2">d</tspan><tspan x="256.4">x</tspan><tspan x="276.8">=</tspan><tspan x="297.2">1</tspan></text>
+<text y="174"><tspan x="32">⌡</tspan><tspan x="113.6">┌</tspan><tspan x="123.8">─</tspan><tspan x="134">─</tspan><tspan x="144.2">─</tspan><tspan x="154.4">─</tspan></text>
+<text y="196"><tspan x="32">-</tspan><tspan x="42.2">∞</tspan><tspan x="113.6">√</tspan><tspan x="123.8">2</tspan><tspan x="134">π</tspan><tspan x="144.2">σ</tspan><tspan x="154.4">²</tspan></text>
+</g>
+<text x="532" y="80" font-family="sans-serif" font-size="14" font-weight="500" fill="#a0a0a0">Scaled dot-product attention</text>
+<g font-family="DejaVu Sans Mono,Menlo,Consolas,monospace" font-size="17" fill="#dedede">
+<text y="108"><tspan x="817.6">⎛</tspan><tspan x="858.4">⊤</tspan><tspan x="878.8">⎞</tspan></text>
+<text y="130"><tspan x="817.6">⎜</tspan><tspan x="838">Q</tspan><tspan x="848.2">K</tspan><tspan x="878.8">⎟</tspan></text>
+<text y="152"><tspan x="532">A</tspan><tspan x="542.2">t</tspan><tspan x="552.4">t</tspan><tspan x="562.6">e</tspan><tspan x="572.8">n</tspan><tspan x="583">t</tspan><tspan x="593.2">i</tspan><tspan x="603.4">o</tspan><tspan x="613.6">n</tspan><tspan x="623.8">(</tspan><tspan x="634">Q</tspan><tspan x="644.2">,</tspan><tspan x="664.6">K</tspan><tspan x="674.8">,</tspan><tspan x="695.2">V</tspan><tspan x="705.4">)</tspan><tspan x="725.8">=</tspan><tspan x="746.2">s</tspan><tspan x="756.4">o</tspan><tspan x="766.6">f</tspan><tspan x="776.8">t</tspan><tspan x="787">m</tspan><tspan x="797.2">a</tspan><tspan x="807.4">x</tspan><tspan x="817.6">⎜</tspan><tspan x="838">─</tspan><tspan x="848.2">─</tspan><tspan x="858.4">─</tspan><tspan x="878.8">⎟</tspan><tspan x="889">V</tspan></text>
+<text y="174"><tspan x="817.6">⎜</tspan><tspan x="838">┌</tspan><tspan x="848.2">─</tspan><tspan x="858.4">─</tspan><tspan x="878.8">⎟</tspan></text>
+<text y="196"><tspan x="817.6">⎝</tspan><tspan x="838">√</tspan><tspan x="848.2">d</tspan><tspan x="858.4">ₖ</tspan><tspan x="878.8">⎠</tspan></text>
+</g>
+<text x="32" y="262" font-family="sans-serif" font-size="14" font-weight="500" fill="#a0a0a0">Cross-entropy loss</text>
+<g font-family="DejaVu Sans Mono,Menlo,Consolas,monospace" font-size="17" fill="#dedede">
+<text y="290"><tspan x="266.6">z</tspan><tspan x="276.8">_</tspan><tspan x="287">(</tspan><tspan x="297.2">i</tspan><tspan x="307.4">,</tspan><tspan x="327.8">y</tspan><tspan x="338">ᵢ</tspan><tspan x="348.2">)</tspan></text>
+<text y="312"><tspan x="134">1</tspan><tspan x="174.8">N</tspan><tspan x="256.4">e</tspan></text>
+<text y="334"><tspan x="32">ℒ</tspan><tspan x="42.2">(</tspan><tspan x="52.4">θ</tspan><tspan x="62.6">)</tspan><tspan x="83">=</tspan><tspan x="103.4">-</tspan><tspan x="123.8">─</tspan><tspan x="134">─</tspan><tspan x="144.2">─</tspan><tspan x="174.8">∑</tspan><tspan x="205.4">l</tspan><tspan x="215.6">o</tspan><tspan x="225.8">g</tspan><tspan x="236">─</tspan><tspan x="246.2">─</tspan><tspan x="256.4">─</tspan><tspan x="266.6">─</tspan><tspan x="276.8">─</tspan><tspan x="287">─</tspan><tspan x="297.2">─</tspan><tspan x="307.4">─</tspan><tspan x="317.6">─</tspan><tspan x="327.8">─</tspan><tspan x="338">─</tspan><tspan x="348.2">─</tspan><tspan x="358.4">─</tspan><tspan x="368.6">─</tspan><tspan x="378.8">─</tspan></text>
+<text y="356"><tspan x="134">N</tspan><tspan x="154.4">i</tspan><tspan x="174.8">=</tspan><tspan x="195.2">1</tspan><tspan x="256.4">K</tspan><tspan x="307.4">z</tspan><tspan x="317.6">_</tspan><tspan x="327.8">(</tspan><tspan x="338">i</tspan><tspan x="348.2">,</tspan><tspan x="368.6">j</tspan><tspan x="378.8">)</tspan></text>
+<text y="378"><tspan x="256.4">∑</tspan><tspan x="297.2">e</tspan></text>
+<text y="400"><tspan x="236">j</tspan><tspan x="256.4">=</tspan><tspan x="276.8">1</tspan></text>
+</g>
+<text x="532" y="262" font-family="sans-serif" font-size="14" font-weight="500" fill="#a0a0a0">Covariance matrix</text>
+<g font-family="DejaVu Sans Mono,Menlo,Consolas,monospace" font-size="17" fill="#dedede">
+<text y="290"><tspan x="572.8">⎛</tspan><tspan x="593.2">σ</tspan><tspan x="603.4">₁</tspan><tspan x="613.6">²</tspan><tspan x="654.4">ρ</tspan><tspan x="664.6">σ</tspan><tspan x="674.8">₁</tspan><tspan x="685">σ</tspan><tspan x="695.2">₂</tspan><tspan x="736">0</tspan><tspan x="756.4">⎞</tspan></text>
+<text y="312"><tspan x="532">Σ</tspan><tspan x="552.4">=</tspan><tspan x="572.8">⎜</tspan><tspan x="583">ρ</tspan><tspan x="593.2">σ</tspan><tspan x="603.4">₁</tspan><tspan x="613.6">σ</tspan><tspan x="623.8">₂</tspan><tspan x="664.6">σ</tspan><tspan x="674.8">₂</tspan><tspan x="685">²</tspan><tspan x="736">0</tspan><tspan x="756.4">⎟</tspan></text>
+<text y="334"><tspan x="572.8">⎝</tspan><tspan x="603.4">0</tspan><tspan x="674.8">0</tspan><tspan x="725.8">σ</tspan><tspan x="736">₃</tspan><tspan x="746.2">²</tspan><tspan x="756.4">⎠</tspan></text>
+</g>
+</svg>

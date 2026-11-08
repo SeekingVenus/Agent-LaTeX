@@ -1,0 +1,25 @@
+name: Rendering or terminal bug
+description: A formula looks wrong, or the wrapper changes terminal behavior.
+body:
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Exact command and smallest formula. Redact private data.
+      placeholder: agent-latex render '\frac{a}{b}'
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected and actual behavior
+      description: Paste output or attach a redacted screenshot.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: agent-latex doctor output, OS, terminal, CLI version, SSH/tmux, and whether F12 or --no-inline changes the issue.
+    validations:
+      required: true

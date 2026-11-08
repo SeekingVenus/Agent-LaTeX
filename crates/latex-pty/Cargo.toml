@@ -1,0 +1,20 @@
+[package]
+name = "latex-pty"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+latex-core.workspace = true
+latex-stream.workspace = true
+latex-term.workspace = true
+unicode-width.workspace = true
+anyhow.workspace = true
+libc.workspace = true
+portable-pty = "0.9"
+vt100 = "0.18"
+crossterm = "0.29"
+crossbeam-channel = "0.5"
+signal-hook = "0.3"
+terminal_size.workspace = true

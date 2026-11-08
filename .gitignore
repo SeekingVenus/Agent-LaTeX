@@ -1,0 +1,17 @@
+/target
+*.log
+.DS_Store
+
+node_modules/
+
+
+# Local credentials and agent configuration are never release inputs.
+.env
+.env.*
+!.env.example
+.aws/
+.agents/
+.codex/
+__pycache__/
+
+/agent-latex-source.tar.gz
