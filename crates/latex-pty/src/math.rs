@@ -1617,11 +1617,13 @@ fn is_border_cell(screen: &Screen, row: u16, col: u16) -> bool {
 
 /// Keep the transcript's row positions while either agent shows its scroll banner.
 pub fn is_scrolled_up(screen: &Screen) -> bool {
+    scroll_banner_row(screen).is_some()
+}
+
+pub(crate) fn scroll_banner_row(screen: &Screen) -> Option<u16> {
     let (rows, cols) = screen.size();
-    let rows = rows.get();
-    let cols = cols.get();
-    (0..rows).any(|row| {
-        let (text, _) = row_text(screen, row, cols);
+    (0..rows.get()).find(|row| {
+        let (text, _) = row_text(screen, *row, cols.get());
         text.contains("Jump to latest") || text.contains("Jump to bottom (")
     })
 }

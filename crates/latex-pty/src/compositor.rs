@@ -13,8 +13,8 @@ use unicode_width::UnicodeWidthStr;
 use vt100::Color;
 
 use crate::math::{
-    content_end, detect_input_start, find_math_with_policy, find_reflow_blocks, is_scrolled_up,
-    row_is_blank, MathPolicy, MathReplacements, ReflowBlock, Replacement,
+    content_end, detect_input_start, find_math_with_policy, find_reflow_blocks, row_is_blank,
+    scroll_banner_row, MathPolicy, MathReplacements, ReflowBlock, Replacement,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -105,15 +105,16 @@ impl Compositor {
 
         // Keep the whole detected input/status area fixed. Rows above it are
         // the conversation area that may be reflowed.
-        let conversation_end = detect_input_start(screen, cursor_row).min(self.rows);
-
-        let scrolled = is_scrolled_up(screen);
+        let banner_row = scroll_banner_row(screen);
+        let conversation_end =
+            detect_input_start(screen, cursor_row).min(banner_row.unwrap_or(self.rows));
+        let scrolled = banner_row.is_some();
         let math = if self.replace_inline {
             find_math_with_policy(screen, self.math_policy)
         } else {
             MathReplacements::default()
         };
-        let reflow = if self.replace_inline && !scrolled {
+        let reflow = if self.replace_inline {
             find_reflow_blocks(screen, conversation_end, cursor_row, self.math_policy)
         } else {
             Vec::new()
@@ -131,7 +132,10 @@ impl Compositor {
             let Some(lines) = render_block_art(screen, &block, self.cols) else {
                 continue;
             };
-            if lines.len() > usize::from(conversation_end) {
+            // Shrinking complete formulas is safe above the fixed scroll overlay.
+            if lines.len() > usize::from(conversation_end)
+                || (scrolled && lines.len() > usize::from(block.source_rows))
+            {
                 continue;
             }
             let start = usize::from(block.row);
@@ -152,21 +156,20 @@ impl Compositor {
             applied.push((start, end, block.start, lines));
         }
 
-        // When reflow has nothing to place, draw 2D blocks in place using the
-        // blank rows already around the formula. This is what makes a
-        // screen-only workflow work while the transcript is scrolled.
-        let use_in_place = applied.is_empty();
-        if use_in_place {
-            for block in &math.blocks {
-                let top = block.row;
-                let bottom = top.saturating_add(block.height);
-                if bottom > conversation_end || (cursor_row >= top && cursor_row < bottom) {
-                    continue;
-                }
-                for row in top..bottom {
-                    block_rows.insert(row);
-                }
+        let mut in_place = Vec::new();
+        for block in &math.blocks {
+            let top = block.row;
+            let bottom = top.saturating_add(block.height);
+            if bottom > conversation_end
+                || (cursor_row >= top && cursor_row < bottom)
+                || (top..bottom).any(|row| block_rows.contains(&row))
+            {
+                continue;
             }
+            for row in top..bottom {
+                block_rows.insert(row);
+            }
+            in_place.push(block);
         }
 
         let inline: Vec<&Replacement> = math
@@ -207,6 +210,16 @@ impl Compositor {
         }
         let cursor_visual = cursor_visual.clamp(0, self.rows.saturating_sub(1) as isize) as u16;
 
+        for block in in_place {
+            for (offset, text) in block.lines.iter().enumerate() {
+                kinds[usize::from(block.row) + offset] = RowKind::Art {
+                    prefix_row: block.prefix_row,
+                    start: block.start,
+                    text: text.clone(),
+                };
+            }
+        }
+
         // Apply from bottom to top so earlier indices remain valid.
         for (start, end, art_start, lines) in applied.into_iter().rev() {
             if end > kinds.len() {
@@ -222,25 +235,6 @@ impl Compositor {
                 })
                 .collect::<Vec<_>>();
             kinds.splice(start..end, replacement);
-        }
-
-        if use_in_place {
-            for block in &math.blocks {
-                let top = usize::from(block.row);
-                let bottom = top + usize::from(block.height);
-                if bottom > kinds.len()
-                    || (cursor_row >= block.row && cursor_row < block.row + block.height)
-                {
-                    continue;
-                }
-                for (offset, text) in block.lines.iter().enumerate() {
-                    kinds[top + offset] = RowKind::Art {
-                        prefix_row: block.prefix_row,
-                        start: block.start,
-                        text: text.clone(),
-                    };
-                }
-            }
         }
 
         // Reflow grows the conversation. Consume blank rows at the bottom
